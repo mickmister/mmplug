@@ -63,13 +63,13 @@ func runDoctor(cmd *cobra.Command, args []string) {
 func runGoCheck() bool {
 	goModFile, err := ioutil.ReadFile("go.mod")
 	if err != nil {
-		fail("Failed to read go.mod file")
+		fail("Failed to read go.mod file. Error: %v", err)
 		return false
 	}
 
 	modFile, err := modfile.Parse("go.mod", goModFile, nil)
 	if err != nil {
-		fail("Failed to parse go.mod file")
+		fail("Failed to parse go.mod file. Error: %v", err)
 		return false
 	}
 
@@ -78,7 +78,7 @@ func runGoCheck() bool {
 	cmd := exec.Command("go", "version")
 	output, err := cmd.Output()
 	if err != nil {
-		fail("Failed to run go version command")
+		fail("Failed to run go version command. Error: %v", err)
 		return false
 	}
 
@@ -98,7 +98,7 @@ func runGoCheck() bool {
 func runNodeCheck() bool {
 	nvmrcFile, err := ioutil.ReadFile(".nvmrc")
 	if err != nil {
-		fail("Failed to read .nvmrc file")
+		fail("Failed to read .nvmrc file. Error: %v", err)
 		return false
 	}
 
@@ -111,6 +111,7 @@ func runNodeCheck() bool {
 	output, err := cmd.Output()
 	if err != nil {
 		fail("Node.js is not installed or not in PATH. %s", nvmInstallMessage)
+		return false
 	}
 
 	currentNodeVersion := strings.TrimSpace(string(output))
