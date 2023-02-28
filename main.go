@@ -53,7 +53,6 @@ func runDoctor(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-
 	if !allPassed {
 		fail("Not all checks passed. Please fix the above issues and try again.")
 	} else {
@@ -86,14 +85,14 @@ func runGoCheck() bool {
 	// go version go1.19.5 linux/amd64
 	currentGoVersion := "v" + strings.Split(string(output), " ")[2][2:]
 
-	if semver.Compare(currentGoVersion, requiredGoVersion) < 0 {
-		fail("Go version %s is incompatible with required version %s", currentGoVersion, requiredGoVersion)
-		fmt.Println("Please follow the instructions at https://go.dev to download the correct version.")
-		return false
+	if semver.Compare(currentGoVersion, requiredGoVersion) >= 0 {
+		success("Go version %s is compatible with required version %s", currentGoVersion, requiredGoVersion)
+		return true
 	}
 
-	success("Go version %s is compatible with required version %s", currentGoVersion, requiredGoVersion)
-	return true
+	fail("Go version %s is incompatible with required version %s", currentGoVersion, requiredGoVersion)
+	fmt.Println("Please follow the instructions at https://go.dev to download the correct version.")
+	return false
 }
 
 func runNodeCheck() bool {
