@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	nvmInstallMessage = "You can download the required Node.js version using Node Version Manager (https://github.com/nvm-sh/nvm). Once nvm is installed, run `nvm install` in this directory to install the correct Node version."
+	nvmInstallMessage = "You can download the required Node.js version using Node Version Manager (https://github.com/nvm-sh/nvm).\nOnce nvm is installed, run `nvm install` in this directory to install the correct Node version."
 )
 
 var mmplugCmd = &cobra.Command{
@@ -24,7 +24,7 @@ var mmplugCmd = &cobra.Command{
 
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Check if your development environment set up correctly",
+	Short: "Check if your development environment is set up correctly",
 	Run:   runDoctor,
 }
 
@@ -32,7 +32,6 @@ func main() {
 	mmplugCmd.AddCommand(doctorCmd)
 
 	if err := mmplugCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -53,17 +52,18 @@ func runDoctor(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
-	if !allPassed {
-		fail("Not all checks passed. Please fix the above issues and try again.")
-	} else {
+	if allPassed {
 		success("All checks passed.")
+		return
 	}
+
+	fmt.Println("Not all checks passed. Please fix the above issues and try again.")
 }
 
 func runGoCheck() bool {
 	goModFile, err := ioutil.ReadFile("go.mod")
 	if err != nil {
-		fail("Failed to read go.mod file. Error: %v", err)
+		success("No go.mod file found. Now assuming the plugin is webapp-side only.")
 		return false
 	}
 
@@ -72,20 +72,24 @@ func runGoCheck() bool {
 		fail("Failed to parse go.mod file. Error: %v", err)
 		return false
 	}
-
-	requiredGoVersion := "v" + modFile.Go.Version
+	requiredGoVersion := modFile.Go.Version
 
 	cmd := exec.Command("go", "version")
 	output, err := cmd.Output()
 	if err != nil {
-		fail("Failed to run go version command. Error: %v", err)
+		fail("Failed to run `go version` command. Error: %v", err)
 		return false
 	}
 
 	// go version go1.19.5 linux/amd64
-	currentGoVersion := "v" + strings.Split(string(output), " ")[2][2:]
+	words := strings.Split(string(output), " ")
+	if len(words) < 3 || !strings.HasPrefix(words[2], "go") {
+		fail("Failed to parse installed Go version from `go version` command")
+		return false
+	}
+	currentGoVersion := words[2][2:]
 
-	if semver.Compare(currentGoVersion, requiredGoVersion) >= 0 {
+	if semver.Compare("v"+currentGoVersion, "v"+requiredGoVersion) >= 0 {
 		success("Go version %s is compatible with required version %s", currentGoVersion, requiredGoVersion)
 		return true
 	}
@@ -98,8 +102,8 @@ func runGoCheck() bool {
 func runNodeCheck() bool {
 	nvmrcFile, err := ioutil.ReadFile(".nvmrc")
 	if err != nil {
-		fail("Failed to read .nvmrc file. Error: %v", err)
-		return false
+		success("No .nvmrc file found. Now assuming the plugin is server-side only.")
+		return true
 	}
 
 	requiredNodeVersion := strings.TrimSpace(string(nvmrcFile))
@@ -113,17 +117,17 @@ func runNodeCheck() bool {
 		fail("Node.js is not installed or not in PATH. %s", nvmInstallMessage)
 		return false
 	}
-
 	currentNodeVersion := strings.TrimSpace(string(output))
 
-	if semver.Major(currentNodeVersion) == semver.Major(requiredNodeVersion) {
+	if semver.MajorMinor(currentNodeVersion) == semver.MajorMinor(requiredNodeVersion) {
 		success("Node version %s is compatible with required version %s", currentNodeVersion, requiredNodeVersion)
 		return true
 	}
 
 	fail("Node version %s is incompatible with required version %s", currentNodeVersion, requiredNodeVersion)
 
-	_, err = exec.LookPath("nvm")
+	cmd = exec.Command("nvm")
+	_, err = cmd.Output()
 	if err != nil {
 		fmt.Println(nvmInstallMessage)
 		return false
